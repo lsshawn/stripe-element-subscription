@@ -74,6 +74,7 @@
 	{#if completed}
 		<div>Completed</div>
 	{:else}
+		<input type="text" value={user.email} />
 		<Elements {stripe} {clientSecret}>
 			<form on:submit|preventDefault={submit}>
 				<!-- <PaymentElement /> -->
