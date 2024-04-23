@@ -1,7 +1,7 @@
 <script>
 	// https://docs.stripe.com/billing/subscriptions/overview#non-payment
 	import { loadStripe } from '@stripe/stripe-js';
-	import { Elements, CardNumber, CardExpiry, CardCvc } from 'svelte-stripe';
+	import { Elements, PaymentElement } from 'svelte-stripe';
 	import { onMount } from 'svelte';
 	import { PUBLIC_STRIPE_KEY } from '$env/static/public';
 
@@ -9,7 +9,7 @@
 	let clientSecret = null;
 	let processing = false;
 	let completed = false;
-	let cardElement;
+	let elements;
 	let customerId = null;
 	let subscriptionId = null;
 
@@ -32,42 +32,61 @@
 			method: 'POST',
 			body: JSON.stringify({ email: user.email })
 		});
-		customerId = (await customerRes.json()).id;
+		const customerData = await customerRes.json();
+		customerId = customerData.id;
 
-		const res = await fetch('/api/create-subscription', {
+		const getSubRes = await fetch('/api/get-subscription', {
 			method: 'POST',
-			body: JSON.stringify({ customer: customerId, priceId: stripePrices.yearly, trialDays: 7 })
+			body: JSON.stringify({ customer: customerId })
 		});
-		const data = await res.json();
-		console.log('LS -> src/routes/+page.svelte:41 -> data: ', data);
-		clientSecret = data.clientSecret;
-		subscriptionId = data.id;
+		const getSubData = await getSubRes.json();
+		console.log('LS -> src/routes/+page.svelte:43 -> getSubData: ', getSubData);
+		if (getSubData.id && getSubData.clientSecret) {
+			subscriptionId = getSubData.id;
+			clientSecret = getSubData.clientSecret;
+		} else {
+			const createSubRes = await fetch('/api/create-subscription', {
+				method: 'POST',
+				body: JSON.stringify({ customer: customerId, priceId: stripePrices.yearly, trialDays: 7 })
+			});
+			const data = await createSubRes.json();
+			clientSecret = data.clientSecret;
+			subscriptionId = data.id;
+		}
 	});
 
 	async function submit() {
 		if (processing) return;
 		processing = true;
 
-		const res = await stripe.confirmCardSetup(clientSecret, {
-			payment_method: {
-				card: cardElement,
-				billing_details: {
-					email: 'shawn@test.com'
-				}
+		const { error } = await stripe.confirmSetup({
+			elements,
+			confirmParams: {
+				return_url: 'http://localhost:5173'
 			}
 		});
+		console.log('LS -> src/routes/+page.svelte:67 -> error: ', error);
 
-		const confirmed = res?.setupIntent?.id;
-		if (!confirmed) {
-			throw new Error('failed at confirmCardSetup');
-		}
+		// const res = await stripe.confirmCardSetup(clientSecret, {
+		// 	payment_method: {
+		// 		card: cardElement,
+		// 		billing_details: {
+		// 			email: 'shawn@test.com'
+		// 		}
+		// 	}
+		// });
 
-		const createRes = await fetch('/api/create-subscription', {
-			method: 'POST',
-			body: JSON.stringify({ customer: customerId, price: stripePrices['yearly'], trialDays: 7 })
-		});
-		const data = await createRes.json();
-		subscriptionId = data.id;
+		// const confirmed = res?.setupIntent?.id;
+		// if (!confirmed) {
+		// 	throw new Error('failed at confirmCardSetup');
+		// }
+
+		// const createRes = await fetch('/api/create-subscription', {
+		// 	method: 'POST',
+		// 	body: JSON.stringify({ customer: customerId, price: stripePrices['yearly'], trialDays: 7 })
+		// });
+		// const data = await createRes.json();
+		// subscriptionId = data.id;
 		processing = false;
 		completed = true;
 	}
@@ -77,26 +96,13 @@
 	{#if completed}
 		<div>Completed</div>
 	{:else}
-		<Elements {stripe} {clientSecret}>
-			<form on:submit|preventDefault={submit}>
-				<!-- <LinkAuthenticationElement /> -->
-				<!-- <PaymentElement /> -->
-				<CardNumber bind:element={cardElement} classes={{ base: 'input' }} />
+		<form on:submit|preventDefault={submit}>
+			<Elements {stripe} {clientSecret} bind:elements>
+				<PaymentElement />
+			</Elements>
 
-				<div class="row">
-					<CardExpiry classes={{ base: 'input' }} />
-					<CardCvc classes={{ base: 'input' }} />
-				</div>
-
-				<button disabled={processing}>
-					{#if processing}
-						Processing...
-					{:else}
-						Pay
-					{/if}
-				</button>
-			</form>
-		</Elements>
+			<button>Pay</button>
+		</form>
 	{/if}
 	<p>
 		stripe customer id: {customerId}
