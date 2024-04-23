@@ -17,13 +17,9 @@
 		email: 'shawn@test.com'
 	};
 
-	// const stripePrices = {
-	// 	yearly: 'price_1P8d8hJFobipvfuFOqSAxT7v',
-	// 	monthly: 'price_1P8d8hJFobipvfuFCcB2vJqg'
-	// };
 	const stripePrices = {
-		yearly: 'price_1P8eQ1BezgnPCYvsN04HS2P2',
-		monthly: 'price_1P8eQBBezgnPCYvsSv9nzxIN'
+		yearly: 'price_1P8d8hJFobipvfuFOqSAxT7v',
+		monthly: 'price_1P8d8hJFobipvfuFCcB2vJqg'
 	};
 
 	onMount(async () => {
@@ -41,6 +37,7 @@
 		if (processing) return;
 		processing = true;
 
+		// if use PaymentElement, change this to confirmSetup
 		const res = await stripe.confirmCardSetup(clientSecret, {
 			payment_method: {
 				card: cardElement,
@@ -55,9 +52,16 @@
 			throw new Error('failed at confirmCardSetup');
 		}
 
+		const paymentMethodId = res.setupIntent.payment_method;
+
 		const createRes = await fetch('/api/create-subscription', {
 			method: 'POST',
-			body: JSON.stringify({ customer: customerId, price: stripePrices['yearly'], trialDays: 7 })
+			body: JSON.stringify({
+				customer: customerId,
+				price: stripePrices['yearly'],
+				trialDays: 7,
+				paymentMethodId
+			})
 		});
 		const data = await createRes.json();
 		subscriptionId = data.id;
@@ -72,7 +76,6 @@
 	{:else}
 		<Elements {stripe} {clientSecret}>
 			<form on:submit|preventDefault={submit}>
-				<!-- <LinkAuthenticationElement /> -->
 				<!-- <PaymentElement /> -->
 				<CardNumber bind:element={cardElement} classes={{ base: 'input' }} />
 
