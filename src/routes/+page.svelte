@@ -28,13 +28,20 @@
 
 	onMount(async () => {
 		stripe = await loadStripe(PUBLIC_STRIPE_KEY);
-		const res = await fetch('/api/setup-intent', {
+		const customerRes = await fetch('/api/get-customer', {
 			method: 'POST',
-			body: JSON.stringify({ user })
+			body: JSON.stringify({ email: user.email })
+		});
+		customerId = (await customerRes.json()).id;
+
+		const res = await fetch('/api/create-subscription', {
+			method: 'POST',
+			body: JSON.stringify({ customer: customerId, priceId: stripePrices.yearly, trialDays: 7 })
 		});
 		const data = await res.json();
+		console.log('LS -> src/routes/+page.svelte:41 -> data: ', data);
 		clientSecret = data.clientSecret;
-		customerId = data.customer;
+		subscriptionId = data.id;
 	});
 
 	async function submit() {
