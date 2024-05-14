@@ -1,7 +1,7 @@
 <script>
 	// https://docs.stripe.com/billing/subscriptions/overview#non-payment
 	import { loadStripe } from '@stripe/stripe-js';
-	import { Elements, CardNumber, CardExpiry, CardCvc } from 'svelte-stripe';
+	import { PaymentRequestButton, Elements, CardNumber, CardExpiry, CardCvc } from 'svelte-stripe';
 	import { onMount } from 'svelte';
 	import { PUBLIC_STRIPE_KEY } from '$env/static/public';
 
@@ -68,6 +68,14 @@
 		processing = false;
 		completed = true;
 	}
+
+	const paymentRequest = {
+		country: 'AU',
+		currency: 'AUD',
+		total: { label: 'Demo total', amount: 1099 },
+		requestPayerName: true,
+		requestPayerEmail: true
+	};
 </script>
 
 {#if clientSecret}
@@ -77,6 +85,9 @@
 		<input type="text" value={user.email} />
 		<Elements {stripe} {clientSecret}>
 			<form on:submit|preventDefault={submit}>
+				Apple pay:
+				<PaymentRequestButton {paymentRequest} on:paymentmethod={submit} />
+				Card:
 				<!-- <PaymentElement /> -->
 				<CardNumber bind:element={cardElement} classes={{ base: 'input' }} />
 
