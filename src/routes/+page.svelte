@@ -78,6 +78,7 @@
 	};
 </script>
 
+<h2>Using live key</h2>
 {#if clientSecret}
 	{#if completed}
 		<div>Completed</div>
